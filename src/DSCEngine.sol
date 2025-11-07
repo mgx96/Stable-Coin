@@ -44,10 +44,12 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AssetAddressesAndPriceFeedAddressesLengthMismatch();
     error DSCEngine__AssetNotAllowed();
     error DSCEngine__TransferFailed();
+    error DSCEngine__CollateralIsBelowRequiredThreshold();
 
     //state variables
     mapping(address asset => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address asset => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => uint256 dscMintedAmount) private s_DSCMinted;
     DecentralizedStableCoin private immutable i_dsc;
 
     //events
@@ -99,11 +101,30 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    function mintDSC() external {}
+    function mintDSC(uint256 dscAmountToMint) external moreThanZero(dscAmountToMint) nonReentrant {
+        s_DSCMinted[msg.sender] += dscAmountToMint;
+    }
 
     function burnDSC() external {}
 
     function liquidate() external {}
 
     function getHealthFactor() external view {}
+
+    //private and internal functions
+    function _getAccountInformation(address user)
+        private
+        view
+        returns (uint256 totalDSCMinted, uint256 collateralValueInUSD)
+    {
+        totalDSCMinted = s_DSCMinted[user];
+        collateralValueInUSD = getAccountCollateralValue(user);
+    }
+
+    function _healthFactor(address user) internal view returns (uint256) {
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = _getAccountInformation(user);
+    }
+    function _revertIfHealthFactorIsBroken() internal view {}
+    //public and external functions
+    function getAccountCollateralValue(address user) public view returns (uint256) {}
 }
