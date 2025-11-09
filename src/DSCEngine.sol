@@ -50,6 +50,8 @@ contract DSCEngine is ReentrancyGuard {
     mapping(address asset => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address asset => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 dscMintedAmount) private s_DSCMinted;
+    address[] private s_collateralAssets;
+
     DecentralizedStableCoin private immutable i_dsc;
 
     //events
@@ -77,6 +79,7 @@ contract DSCEngine is ReentrancyGuard {
         }
         for (uint256 i = 0; i < assetAddresses.length; i++) {
             s_priceFeeds[assetAddresses[i]] = priceFeedAddresses[i];
+            s_collateralAssets.push(assetAddresses[i]);
         }
         i_dsc = DecentralizedStableCoin(dscAddress);
     }
@@ -125,6 +128,12 @@ contract DSCEngine is ReentrancyGuard {
         (uint256 totalDSCMinted, uint256 collateralValueInUSD) = _getAccountInformation(user);
     }
     function _revertIfHealthFactorIsBroken() internal view {}
+
     //public and external functions
-    function getAccountCollateralValue(address user) public view returns (uint256) {}
+    function getAccountCollateralValue(address user) public view returns (uint256) {
+        for (uint256 i = 0; i < s_collateralAssets.length; i++) {
+            address asset = s_collateralAssets[i];
+            uint256 amount = s_collateralDeposited[user][asset];
+        }
+    }
 }
