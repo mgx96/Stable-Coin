@@ -64,6 +64,7 @@ contract DSCEngine is ReentrancyGuard {
 
     //events
     event CollateralDeposited(address indexed user, address indexed asset, uint256 indexed amount);
+    event CollateralRedeemed(address indexed user, address indexed asset, uint256 indexed amount);
 
     //modifiers
     modifier moreThanZero(uint256 amount) {
@@ -91,11 +92,17 @@ contract DSCEngine is ReentrancyGuard {
         }
         i_dsc = DecentralizedStableCoin(dscAddress);
     }
+
     //external functions
-    function depositCollateralAndMintDSC() external {}
+    function depositCollateralAndMintDSC(address collateralAddress, uint256 collateralAmount, uint256 dscAmountToMint)
+        external
+    {
+        depositCollateral(collateralAddress, collateralAmount);
+        mintDSC(dscAmountToMint);
+    }
 
     function depositCollateral(address collateralAddress, uint256 collateralAmount)
-        external
+        public
         moreThanZero(collateralAmount)
         isAllowedAsset(collateralAddress)
         nonReentrant
@@ -106,13 +113,31 @@ contract DSCEngine is ReentrancyGuard {
         if (!success) {
             revert DSCEngine__TransferFailed();
         }
+        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function redeemCollateralForDSC() external {}
+    function redeemCollateralForDSC(address collateralAddress, uint256 collateralAmount, uint256 dscAmountToBurn)
+        external
+    {
+        burnDSC(dscAmountToBurn);
+        redeemCollateral(collateralAddress, collateralAmount);
+    }
 
-    function redeemCollateral() external {}
+    function redeemCollateral(address collateralAddress, uint256 collateralAmount)
+        public
+        moreThanZero(collateralAmount)
+        nonReentrant
+    {
+        s_collateralDeposited[msg.sender][collateralAddress] -= collateralAmount;
+        emit CollateralRedeemed(msg.sender, collateralAddress, collateralAmount);
+        bool success = IERC20(collateralAddress).transfer(msg.sender, collateralAmount);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
-    function mintDSC(uint256 dscAmountToMint) external moreThanZero(dscAmountToMint) nonReentrant {
+    function mintDSC(uint256 dscAmountToMint) public moreThanZero(dscAmountToMint) nonReentrant {
         s_DSCMinted[msg.sender] += dscAmountToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_dsc.mint(msg.sender, dscAmountToMint);
@@ -121,7 +146,15 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function burnDSC() external {}
+    function burnDSC(uint256 amount) public moreThanZero(amount) {
+        s_DSCMinted[msg.sender] -= amount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), amount);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        i_dsc.burn(amount);
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function liquidate() external {}
 
