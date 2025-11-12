@@ -46,6 +46,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AssetNotAllowed();
     error DSCEngine__TransferFailed();
     error DSCEngine__CollateralIsBelowRequiredThreshold(uint256 healthFactor);
+    error DSCEngine__HealthFactorIsOverTheRequiredThreshold(uint256 healthFactor);
     error DSCEngine__MintFailed();
 
     //state variables
@@ -53,7 +54,7 @@ contract DSCEngine is ReentrancyGuard {
     uint256 private constant PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // 200% overcollateralized
     uint256 private constant LIQUIDATION_PRECISION = 100;
-    uint256 private constant MIN_HEALTH_FACTOR = 1;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
 
     mapping(address asset => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address asset => uint256 amount)) private s_collateralDeposited;
@@ -113,7 +114,6 @@ contract DSCEngine is ReentrancyGuard {
         if (!success) {
             revert DSCEngine__TransferFailed();
         }
-        _revertIfHealthFactorIsBroken(msg.sender);
     }
 
     function redeemCollateralForDSC(address collateralAddress, uint256 collateralAmount, uint256 dscAmountToBurn)
@@ -156,7 +156,17 @@ contract DSCEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function liquidate() external {}
+    function liquidate(address collateral, address user, uint256 debtToCover)
+        external
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert DSCEngine__HealthFactorIsOverTheRequiredThreshold(startingUserHealthFactor);
+        }
+        uint256 assetAmountFromDebtCovered;
+    }
 
     function getHealthFactor() external view {}
 
