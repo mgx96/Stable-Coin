@@ -46,7 +46,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__AssetNotAllowed();
     error DSCEngine__TransferFailed();
     error DSCEngine__CollateralIsBelowRequiredThreshold(uint256 healthFactor);
-    error DSCEngine__HealthFactorIsOverTheRequiredThreshold(uint256 healthFactor);
+    error DSCEngine__HealthFactorIsOverTheRequiredThresholdForLiquidation(uint256 healthFactor);
     error DSCEngine__MintFailed();
 
     //state variables
@@ -55,6 +55,7 @@ contract DSCEngine is ReentrancyGuard {
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // 200% overcollateralized
     uint256 private constant LIQUIDATION_PRECISION = 100;
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIDATION_BONUS = 10; // 10%
 
     mapping(address asset => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address asset => uint256 amount)) private s_collateralDeposited;
@@ -163,9 +164,11 @@ contract DSCEngine is ReentrancyGuard {
     {
         uint256 startingUserHealthFactor = _healthFactor(user);
         if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
-            revert DSCEngine__HealthFactorIsOverTheRequiredThreshold(startingUserHealthFactor);
+            revert DSCEngine__HealthFactorIsOverTheRequiredThresholdForLiquidation(startingUserHealthFactor);
         }
-        uint256 assetAmountFromDebtCovered;
+        uint256 assetAmountFromDebtCovered = getAssetAmountFromUsd(collateral, debtToCover);
+        uint256 bonusCollateral = (assetAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+        uint256 totalCollateralToRedeem = assetAmountFromDebtCovered + bonusCollateral;
     }
 
     function getHealthFactor() external view {}
@@ -194,6 +197,12 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     //public and external functions
+    function getAssetAmountFromUsd(address asset, uint256 usdAmount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[asset]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return (usdAmount * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+    }
+
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUSD) {
         for (uint256 i = 0; i < s_collateralAssets.length; i++) {
             address asset = s_collateralAssets[i];
