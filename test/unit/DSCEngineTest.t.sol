@@ -1,4 +1,4 @@
-// SPDX-Licnese-Identifier: MIT
+//SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.19;
 
@@ -15,7 +15,9 @@ contract DSCEngineTest is Test {
     DSCEngine engine;
     HelperConfig config;
     address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
     address weth;
+    address btc;
     address public USER = makeAddr("user");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
@@ -23,8 +25,23 @@ contract DSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
-        (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth, btc,) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           CONSTRUCTOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    address[] public assetAddress;
+    address[] public priceFeedAddress;
+
+    function testRevertIfAssetLengthDoesNotMatchPriceFeedLength() public {
+        assetAddress.push(weth);
+        priceFeedAddress.push(ethUsdPriceFeed);
+        priceFeedAddress.push(btcUsdPriceFeed);
+        vm.expectRevert(DSCEngine.DSCEngine__AssetAddressesAndPriceFeedAddressesLengthMismatch.selector);
+        new DSCEngine(assetAddress, priceFeedAddress, address(dsc));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,6 +53,13 @@ contract DSCEngineTest is Test {
         uint256 expectedUsd = 52500e18; // 15 ETH * $3500(ETH/USD price)
         uint256 actualUsd = engine.getUsdValue(weth, ethAmount);
         assert(expectedUsd == actualUsd);
+    }
+
+    function testGetAssetAmountFromUsd() public view {
+        uint256 usdAmount = 52500 ether;
+        uint256 expectedEth = 15 ether; // $52500 / $3500(ETH/USD price)
+        uint256 actualEth = engine.getAssetAmountFromUsd(weth, usdAmount);
+        assert(expectedEth == actualEth);
     }
 
     /*//////////////////////////////////////////////////////////////
