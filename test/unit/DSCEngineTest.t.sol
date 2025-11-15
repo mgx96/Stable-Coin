@@ -74,5 +74,27 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testDepositCollateral() public {}
+    function testRevertsWithUnapprovedCollateral() public {
+        ERC20Mock unapprovedCollateral = new ERC20Mock();
+        vm.startPrank(USER);
+        vm.expectRevert(DSCEngine.DSCEngine__AssetNotAllowed.selector);
+        engine.depositCollateral(address(unapprovedCollateral), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    modifier depositCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    function testCanDepositCollateralAndGetAccountInfo() public depositCollateral {
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        uint256 expectedDSCMinted = 0;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
+    }
 }
