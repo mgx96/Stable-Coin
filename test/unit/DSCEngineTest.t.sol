@@ -22,8 +22,8 @@ contract DSCEngineTest is Test {
     address weth;
     address btc;
     address public USER = makeAddr("user");
-    uint256 public constant AMOUNT_COLLATERAL = 10 ether;
-    uint256 public constant STARTING_BALANCE = 10 ether;
+    uint256 public constant AMOUNT_COLLATERAL = 15 ether;
+    uint256 public constant STARTING_BALANCE = 15 ether;
 
     function setUp() public {
         deployer = new DeployDSC();
@@ -168,7 +168,7 @@ contract DSCEngineTest is Test {
         console.log("Collateral Value Before Liquidation: ", collateralBefore);
         console.log("Collateral Value After Liquidation: ", collateralAfter);
 
-        // Health factor must have improved (in your engine, it will be max since debt = 0)
+        // Health factor must have improved (in the engine, it will be max since debt = 0)
         uint256 userHFAfter = engine.getHealthFactor(USER);
         assertGt(userHFAfter, userHFBef);
         assertEq(userHFAfter, type(uint256).max);
@@ -200,5 +200,80 @@ contract DSCEngineTest is Test {
         );
         engine.liquidate(weth, USER, amountToMint);
         vm.stopPrank();
+    }
+
+    function testRedeemCollateral() public depositCollateral {
+        uint256 collateralToRedeem = 5 ether;
+        vm.startPrank(USER);
+        engine.redeemCollateral(weth, collateralToRedeem);
+        vm.stopPrank();
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        uint256 expectedDSCMinted = 0;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL - collateralToRedeem);
+    }
+
+    function testRedeemCollateralForDSC() public depositCollateral {
+        uint256 amountToMint = 5000e18;
+        uint256 collateralToRedeem = 6 ether;
+        vm.startPrank(USER);
+        engine.mintDSC(amountToMint);
+        engine.redeemCollateralForDSC(weth, collateralToRedeem, amountToMint);
+        vm.stopPrank();
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        uint256 expectedDSCMinted = 0;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL - collateralToRedeem);
+    }
+
+    function testMintDSC() public depositCollateral {
+        uint256 amountToMint = 5000e18;
+        vm.startPrank(USER);
+        engine.mintDSC(amountToMint);
+        vm.stopPrank();
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        uint256 expectedDSCMinted = amountToMint;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
+    }
+
+    function testBurnDSC() public depositCollateral {
+        uint256 amountToMint = 5000e18;
+        vm.startPrank(USER);
+        engine.mintDSC(amountToMint);
+        dsc.approve(address(engine), amountToMint);
+        engine.burnDSC(amountToMint);
+        vm.stopPrank();
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        uint256 expectedDSCMinted = 0;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
+    }
+
+    function testGetAccountCollateralValue() public depositCollateral {
+        uint256 collateralValue = engine.getAccountCollateralValue(USER);
+        uint256 expectedValue = engine.getUsdValue(weth, AMOUNT_COLLATERAL);
+        assertEq(expectedValue, collateralValue);
+    }
+
+    //doesn't increase coverage
+    function testGetAccountInformation() public depositCollateral {
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedCollateralValue = engine.getUsdValue(weth, AMOUNT_COLLATERAL);
+        assertEq(expectedCollateralValue, collateralValueInUSD);
+        assertEq(0, totalDSCMinted);
+    }
+
+    function testGetHealthFactor() public depositCollateral {
+        uint256 healthFactor = engine.getHealthFactor(USER);
+        assertEq(type(uint256).max, healthFactor);
     }
 }
