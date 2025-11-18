@@ -22,8 +22,8 @@ contract DSCEngineTest is Test {
     address weth;
     address btc;
     address public USER = makeAddr("user");
-    uint256 public constant AMOUNT_COLLATERAL = 15 ether;
-    uint256 public constant STARTING_BALANCE = 15 ether;
+    uint256 public constant AMOUNT_COLLATERAL = 10 ether;
+    uint256 public constant STARTING_BALANCE = 10 ether;
 
     function setUp() public {
         deployer = new DeployDSC();
@@ -97,6 +97,22 @@ contract DSCEngineTest is Test {
         (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
         uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
         uint256 expectedDSCMinted = 0;
+        assertEq(expectedDSCMinted, totalDSCMinted);
+        assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
+    }
+
+    function testDepositCollateralAndMintDSC() public {
+        uint256 amountToMint = 5000e18;
+        uint256 collateralToDeposit = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(engine), collateralToDeposit);
+        engine.depositCollateralAndMintDSC(weth, collateralToDeposit, amountToMint);
+        vm.stopPrank();
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getAssetAmountFromUsd(weth, collateralValueInUSD);
+        expectedDepositedAmount = collateralToDeposit;
+        uint256 expectedDSCMinted = amountToMint;
         assertEq(expectedDSCMinted, totalDSCMinted);
         assertEq(expectedDepositedAmount, AMOUNT_COLLATERAL);
     }
@@ -220,6 +236,7 @@ contract DSCEngineTest is Test {
         uint256 collateralToRedeem = 6 ether;
         vm.startPrank(USER);
         engine.mintDSC(amountToMint);
+        dsc.approve(address(engine), amountToMint);
         engine.redeemCollateralForDSC(weth, collateralToRedeem, amountToMint);
         vm.stopPrank();
 
