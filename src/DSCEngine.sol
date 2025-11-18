@@ -172,8 +172,6 @@ contract DSCEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    function getHealthFactor() external view {}
-
     //private and internal functions
     function _burnDSC(uint256 amount, address onBehalfOf, address dscFrom) internal {
         s_DSCMinted[onBehalfOf] -= amount;
@@ -246,5 +244,21 @@ contract DSCEngine is ReentrancyGuard {
         returns (uint256 totalDSCMinted, uint256 collateralValueInUSD)
     {
         (totalDSCMinted, collateralValueInUSD) = _getAccountInformation(user);
+    }
+
+    function getLiquidationThreshold() external pure returns (uint256) {
+        return LIQUIDATION_THRESHOLD;
+    }
+
+    function getLiquidationPrecision() external pure returns (uint256) {
+        return LIQUIDATION_PRECISION;
+    }
+
+    function getDecimalPrecision() external pure returns (uint256) {
+        return PRECISION;
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthFactor(user);
     }
 }
