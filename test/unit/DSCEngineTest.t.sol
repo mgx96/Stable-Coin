@@ -293,4 +293,8 @@ contract DSCEngineTest is Test {
         uint256 healthFactor = engine.getHealthFactor(USER);
         assertEq(type(uint256).max, healthFactor);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               FUZZ TESTS
+    //////////////////////////////////////////////////////////////*/
 }
