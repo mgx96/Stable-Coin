@@ -41,4 +41,13 @@ contract Handler is Test {
             return wbtc;
         }
     }
+
+    function redeemCollateral(uint256 collateralSeed, uint256 collateralAmount) public {
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        collateralAmount = bound(collateralAmount, 1, MAX_DEPOSIT_SIZE);
+
+        vm.startPrank(msg.sender);
+        engine.redeemCollateral(address(collateral), collateralAmount);
+        vm.stopPrank();
+    }
 }
