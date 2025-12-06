@@ -37,6 +37,11 @@ contract InvariantsTest is Test {
         uint256 wbtcValue = engine.getUsdValue(wbtc, totalWbtcDeposited);
         uint256 totalCollateralValue = wethValue + wbtcValue;
 
+        console.log("Total Supply: ", totalSupply);
+        console.log("WETH value: ", wethValue);
+        console.log("WBTC value: ", wbtcValue);
+        console.log("Times mint is called: ", handler.timesMintIsCalled());
+
         assert(totalSupply <= totalCollateralValue);
     }
 }
