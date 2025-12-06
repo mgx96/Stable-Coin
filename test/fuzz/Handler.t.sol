@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
@@ -13,6 +13,7 @@ contract Handler is Test {
     ERC20Mock weth;
     ERC20Mock wbtc;
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+    uint256 public timesMintIsCalled;
 
     constructor(DSCEngine _engine, DecentralizedStableCoin _dsc) {
         engine = _engine;
@@ -42,9 +43,26 @@ contract Handler is Test {
         }
     }
 
+    function mintDsc(uint256 dscAmount) public {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(msg.sender);
+        int256 maxDscToMint = (int256(collateralValueInUsd / 2)) - int256(totalDscMinted);
+        if (maxDscToMint < 0) {
+            return;
+        }
+        dscAmount = bound(dscAmount, 0, uint256(maxDscToMint));
+        if (dscAmount == 0) {
+            return;
+        }
+        vm.startPrank(msg.sender);
+        engine.mintDSC(dscAmount);
+        vm.stopPrank();
+        timesMintIsCalled++;
+    }
+
     function redeemCollateral(uint256 collateralSeed, uint256 collateralAmount) public {
         ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
         uint256 maxAmountToRedeem = engine.getCollateralBalanceOfUser(address(collateral), msg.sender);
+
         collateralAmount = bound(collateralAmount, 0, maxAmountToRedeem);
         if (collateralAmount == 0) {
             return;
