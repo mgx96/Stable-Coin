@@ -44,4 +44,9 @@ contract InvariantsTest is Test {
 
         assert(totalSupply <= totalCollateralValue);
     }
+
+    function invariant_gettersShouldNotRevert() public view {
+        engine.getLiquidationThreshold();
+        engine.getDecimalPrecision();
+    }
 }
