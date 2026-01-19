@@ -6,6 +6,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     DSCEngine engine;
@@ -15,6 +16,7 @@ contract Handler is Test {
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
     uint256 public timesMintIsCalled;
     address[] public usersWithDepositedCollateral;
+    MockV3Aggregator ethUsdPriceFeed;
 
     constructor(DSCEngine _engine, DecentralizedStableCoin _dsc) {
         engine = _engine;
@@ -23,6 +25,8 @@ contract Handler is Test {
         address[] memory collateralAssets = engine.getCollateralAssets();
         weth = ERC20Mock(collateralAssets[0]);
         wbtc = ERC20Mock(collateralAssets[1]);
+
+        ethUsdPriceFeed = MockV3Aggregator(engine.getCollateralAssetPriceFeed(address(weth)));
     }
 
     function depositCollateral(uint256 collateralSeed, uint256 collateralAmount) public {
