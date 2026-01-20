@@ -29,6 +29,7 @@ import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "./libraries/OracleLib.sol";
 
 /**
  * @title DSCEngine
@@ -49,6 +50,10 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__HealthFactorIsOverTheRequiredThresholdForLiquidation(uint256 healthFactor);
     error DSCEngine__HealthFactorNotImproved();
     error DSCEngine__MintFailed();
+
+    //type
+
+    using OracleLib for AggregatorV3Interface;
 
     //state variables
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
@@ -219,7 +224,7 @@ contract DSCEngine is ReentrancyGuard {
     //public and external functions
     function getAssetAmountFromUsd(address asset, uint256 usdAmount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[asset]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         return (usdAmount * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
 
